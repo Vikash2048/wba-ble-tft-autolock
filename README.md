@@ -2,10 +2,11 @@
 
 A Bluetooth LE gadget built on the **STM32 NUCLEO-WBA25CE1** with a 320×240 parallel TFT shield and an **LVGL** user interface.
 
-It does two jobs:
+It does three jobs:
 
 1. **Phone companion display:** show messages, pictures and iPhone "Now playing" info that arrive over BLE.
 2. **Laptop auto-lock:** watch your iPhone's signal strength (RSSI). When you walk away, it locks your Windows laptop (Win+L), acting as a BLE keyboard. When you come back, it wakes the laptop.
+3. **Smart desk clock:** time, date and battery from your iPhone, in four looks you can switch between (cyber HUD, retro terminal, radar, flip cards).
 
 All the logs and live status appear **on the TFT itself**, so you don't need a serial terminal.
 The screen is a **resistive touch screen** (calibrated once, saved in flash); button B1 works as well.
@@ -30,6 +31,7 @@ Each feature has its own screen. Open them from the home menu, and use **"< Menu
 | 10 | AutoLock log | Auto-lock status lines and the last log lines |
 | 11 | AutoLock | Big NEAR / FAR / PAUSED / NO PHONE indicator, live dBm, lock countdown, 30 s RSSI chart with thresholds, Pause/Resume, Forget pairings |
 | 12 | Touch | Live raw touch values, a dot under your finger, 3-point calibration (saved in flash) |
+| 13 | Clock | Desk clock with time + battery from the iPhone, 4 layouts (STYLE button), 12/24 h |
 
 **Navigation:** tap the screen (after calibration), or use **B1**: tap = next item, hold = select.
 
@@ -42,6 +44,24 @@ Each feature has its own screen. Open them from the home menu, and use **"< Menu
   - **NEAR** again → board sends a wake key (Space).
 - The settings (thresholds, timings) can be changed from the phone through a custom GATT service. They are saved in flash.
 - More than one laptop can be paired at the same time.
+
+### Desk clock (menu 13)
+
+The time comes from the iPhone over Bluetooth, with no app: iOS shares the standard
+**Current Time Service** (0x1805) and **Battery Service** (0x180F) with paired accessories.
+The board reads both after connecting, gets notified when the phone's time changes, and
+re-reads every 30 minutes. In between, the clock keeps running on its own.
+
+| Layout | Look |
+|---|---|
+| **HUD** | Neon 7-segment digits with a glow, magenta "glitch" on each new minute, seconds sweep bar, signal bars, proximity / laptop / battery, signal sparkline |
+| **Terminal** | Green phosphor text, the prompt types itself when opened, signal meter `[####-]`, blinking block cursor |
+| **Radar** | Rotating sweep line; the iPhone is a blip that moves closer or further with its signal and "pings" each time the sweep passes |
+| **Flip** | Big digits on dark cards; a flap falls over a card when its digit changes |
+
+- **STYLE** (top-left) switches to the next layout; **tap the time** to switch 12 h / 24 h.
+- Both choices are saved in flash, so the clock opens in your style after a power cut.
+- Only one layout is built at a time, so the four don't add up in RAM.
 
 ---
 
@@ -105,6 +125,8 @@ stray write pulse (CS is tied to GND) can't disturb the display. Details: `TOUCH
 | HID (keyboard) | 0x1812 | Server: Win+L / wake key to the laptop |
 | Apple Media Service | 89D3502B-0F36-433A-8EF4-C502AD55F8DC | Client: Now playing |
 | ANCS | Apple | Client: keeps the iPhone link alive |
+| Current Time | 0x1805 (char 0x2A2B) | Client: time for the desk clock |
+| Battery | 0x180F (char 0x2A19) | Client: iPhone battery level |
 
 Advertised name: `TFT_XX`. GAP name: **TFT Display**. Pairing uses numeric comparison (MITM, bonding).
 
@@ -130,6 +152,7 @@ Advertised name: `TFT_XX`. GAP name: **TFT Display**. Pairing uses numeric compa
 2. **iPhone:** pair from the Settings → Bluetooth menu and confirm the 6-digit code on both screens. *Now playing* and auto-lock start automatically.
 3. **Laptop:** in Windows *Bluetooth & devices*, add the device. It shows up as a keyboard.
 4. Open menu **11. AutoLock** and walk away. The status turns red (FAR) and the laptop locks.
+   Or open **13. Clock**: about 10 s after the iPhone connects, the time and battery appear.
 5. To adjust the thresholds, write the AutoLock settings characteristic from a phone app such as nRF Connect.
 6. **Forget pairings** (menu 11, press twice) clears all bonds.
 
@@ -139,10 +162,11 @@ Advertised name: `TFT_XX`. GAP name: **TFT Display**. Pairing uses numeric compa
 
 ```
 Core/Src/          main.c (+ TFT_PIN_TEST test modes), TFT driver, touch.c,
-                   ui_*.c screens, screen_log.c
+                   ui_*.c screens, screen_log.c,
+                   ui_clock*.c (desk clock framework + 4 layouts), lv_font_digits_64.c
 Core/lvgl/         LVGL library
 STM32_WPAN/App/    app_ble.c, BLE services, ams_client, ancs_client,
-                   presence, hid_keyboard, settings
+                   presence, hid_keyboard, settings, phone_time (clock)
 STM32CubeIDE/      CubeIDE project files
 tools/             image_sender.html (Web Bluetooth, Android Chrome)
 *.md               setup and debug guides
@@ -171,6 +195,8 @@ terminal at 115200 and on LED LD2:
 ## Known limitations
 
 - RAM use is about 90 of 96 KB, so keep new features small.
+- Flash use is about 440 of 492 KB (the last 20 KB hold settings and Bluetooth pairings).
+- The desk clock needs an iPhone: Android doesn't share the Current Time Service with accessories.
 - CS is tied to GND, so the panel can lose byte sync. Menu 8 fixes this. The permanent fix is to move CS to PA12
   (would also make touch reads fully independent of the display).
 - Touch calibration uses 3 points (linear). A 5-point least-squares calibration would also correct a tilted panel.
