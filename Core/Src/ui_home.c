@@ -26,6 +26,7 @@ static const menu_item_t MENU[] = {
     { "10. AutoLock log", ui_show_autolock },
     { "11. AutoLock",     ui_show_autolock_view },
     { "12. Touch",        ui_show_touch },
+    { "13. Clock",        ui_show_clock },
     /* next steps get added here */
 };
 #define MENU_COUNT (sizeof(MENU) / sizeof(MENU[0]))

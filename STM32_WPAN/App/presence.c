@@ -34,6 +34,7 @@
 #include "ancs_client.h"
 #include "hid_keyboard.h"
 #include "settings.h"
+#include "phone_time.h"     /* desk clock */
 
 #define TICK_MS          500U
 #define NO_CONN          0xFFFFU
@@ -313,6 +314,9 @@ static void presence_task(void)
 
   /* 6. Step 5c: save settings to flash when the phone changed them */
   settings_tick();
+
+  /* 7. desk clock: time + battery from the iPhone */
+  phone_time_tick();
 
 
 }

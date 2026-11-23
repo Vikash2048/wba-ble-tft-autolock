@@ -3,7 +3,7 @@
 **
 ** @file        : STM32WBA25CEUX_FLASH.ld
 **
-** @author      : Application team
+** @author      : Vikash Singh
 **
 ** @brief       : Linker script for STM32WBA25CEUX Device from STM32WBA series
 **                      512 KBytes FLASH

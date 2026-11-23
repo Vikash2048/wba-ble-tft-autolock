@@ -429,6 +429,41 @@
 			<locationURI>PARENT-1-PROJECT_LOC/Core/Src/ui_touch.c</locationURI>
 		</link>
 		<link>
+			<name>Application/User/STM32_WPAN/App/phone_time.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/STM32_WPAN/App/phone_time.c</locationURI>
+		</link>
+		<link>
+			<name>Application/User/Core/ui_clock.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/Core/Src/ui_clock.c</locationURI>
+		</link>
+		<link>
+			<name>Application/User/Core/ui_clock_hud.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/Core/Src/ui_clock_hud.c</locationURI>
+		</link>
+		<link>
+			<name>Application/User/Core/ui_clock_term.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/Core/Src/ui_clock_term.c</locationURI>
+		</link>
+		<link>
+			<name>Application/User/Core/ui_clock_radar.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/Core/Src/ui_clock_radar.c</locationURI>
+		</link>
+		<link>
+			<name>Application/User/Core/ui_clock_flip.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/Core/Src/ui_clock_flip.c</locationURI>
+		</link>
+		<link>
+			<name>Application/User/Core/lv_font_digits_64.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/Core/Src/lv_font_digits_64.c</locationURI>
+		</link>
+		<link>
 			<name>Application/User/STM32_WPAN/App/app_ble.c</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/STM32_WPAN/App/app_ble.c</locationURI>

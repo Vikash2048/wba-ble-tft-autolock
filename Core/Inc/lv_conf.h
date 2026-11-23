@@ -1449,7 +1449,7 @@
 #define LV_USE_LED 1
 
 /** Line */
-#define LV_USE_LINE 0   /* BLE_TFT 5.5: unused widget */
+#define LV_USE_LINE 1   /* BLE_TFT 5.5: was off; desk clock radar sweep needs it */
 
 /** List */
 #define LV_USE_LIST 0

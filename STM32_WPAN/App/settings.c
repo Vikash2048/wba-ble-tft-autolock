@@ -44,12 +44,15 @@ typedef struct
   uint8_t    pad1;
   uint16_t   cal_rx[3];  /* raw touch values of the 3 calibration crosses */
   uint16_t   cal_ry[3];
-  uint8_t    pad[8];     /* total 32 bytes = two 128-bit flash writes */
+  uint8_t    clock_style; /* desk clock layout 0..3 (0xFF in older records = default) */
+  uint8_t    clock_h24;   /* desk clock 0 = 12 h, 1 = 24 h */
+  uint8_t    pad[6];     /* total 32 bytes = two 128-bit flash writes */
 } stored_t;
 
 static settings_t cur;
 static uint8_t    cal_valid;
 static uint16_t   cal_rx[3], cal_ry[3];
+static uint8_t    clk_style, clk_h24;    /* desk clock (defaults: layout 0, 12 h) */
 
 /* ---- UUIDs (little-endian) ---- */
 #define SET_UUID(last) { 0x01, 0x0A, 0x8F, 0x7E, 0x2D, 0x6B, 0x3A, 0x9F, \
@@ -109,6 +112,11 @@ void settings_init(void)
       memcpy(cal_ry, f->cal_ry, sizeof cal_ry);
       SLOG(">> settings: touch calibration loaded from flash\n");
     }
+    if (f->magic == CFG_MAGIC2 && f->clock_style < 4 && f->clock_h24 <= 1)
+    {
+      clk_style = f->clock_style;
+      clk_h24   = f->clock_h24;
+    }
   }
   else
   {
@@ -160,6 +168,8 @@ void settings_tick(void)
       st.magic = CFG_MAGIC2;
       st.s = cur;
       st.cal_valid = cal_valid;
+      st.clock_style = clk_style;
+      st.clock_h24 = clk_h24;
       memcpy(st.cal_rx, cal_rx, sizeof cal_rx);
       memcpy(st.cal_ry, cal_ry, sizeof cal_ry);
       memcpy(wbuf, &st, sizeof wbuf);
@@ -288,4 +298,19 @@ int settings_get_touch_cal(uint16_t rx[3], uint16_t ry[3])
   memcpy(rx, cal_rx, sizeof cal_rx);
   memcpy(ry, cal_ry, sizeof cal_ry);
   return 1;
+}
+
+/* ---------------- desk clock layout + 12/24 h ---------------- */
+void settings_get_clock(uint8_t *style, uint8_t *h24)
+{
+  *style = clk_style;
+  *h24 = clk_h24;
+}
+
+void settings_set_clock(uint8_t style, uint8_t h24)
+{
+  if (style == clk_style && h24 == clk_h24) return;
+  clk_style = style;
+  clk_h24 = h24;
+  request_save();
 }

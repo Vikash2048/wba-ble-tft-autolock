@@ -51,6 +51,7 @@
 #include "hid_keyboard.h"        /* BLE_TFT_AutoLock */
 #include "settings.h"            /* BLE_TFT_AutoLock */
 #include "screen_log.h"          /* BLE_TFT_AutoLock: log on the TFT */
+#include "phone_time.h"          /* desk clock: time + battery from the iPhone */
 #include "app_bsp.h"
 /* USER CODE END Includes */
 
@@ -331,6 +332,7 @@ void APP_BLE_Init(void)
     ams_client_init();          /* BLE_TFT step 7:   Apple Media Service client (iPhone now playing) */
     hid_keyboard_init();        /* BLE_TFT_AutoLock: keyboard for the laptop (Win+L) */
     settings_service_init();    /* BLE_TFT_AutoLock: settings from the phone + flash */
+    phone_time_init();          /* desk clock: Current Time + Battery client on the iPhone */
     ret = aci_hal_set_radio_activity_mask(0x0006);
     if (ret != BLE_STATUS_SUCCESS)
     {
