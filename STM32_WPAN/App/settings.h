@@ -21,6 +21,9 @@ void              settings_init(void);           /* load from flash (or defaults
 void              settings_service_init(void);   /* add the GATT service          */
 const settings_t *settings_get(void);
 void              settings_tick(void);           /* every 500 ms: flash save state machine */
+/* BLE_TFT_AutoLock: touch calibration (raw values of the 3 crosses), kept in the same flash page */
+void              settings_save_touch_cal(const uint16_t rx[3], const uint16_t ry[3]);
+int               settings_get_touch_cal(uint16_t rx[3], uint16_t ry[3]);   /* 1 = saved */
 void              settings_update_status(uint8_t near, int8_t filt, int8_t raw,
                                          uint8_t paused, uint8_t kbd);
 

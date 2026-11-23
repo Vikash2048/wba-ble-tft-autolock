@@ -22,8 +22,8 @@ static const pin_t DATA[8] = {
     {GPIOA, GPIO_PIN_8 },   /* D2 */
     {GPIOA, GPIO_PIN_11},   /* D3 */
     {GPIOB, GPIO_PIN_2 },   /* D4 */
-    {GPIOA, GPIO_PIN_7 },   /* D5 */
-    {GPIOB, GPIO_PIN_15},   /* D6 */
+    {GPIOB, GPIO_PIN_15},   /* D5  (BLE_TFT_AutoLock touch: D5/D6 wires swapped, was PA7) */
+    {GPIOA, GPIO_PIN_7 },   /* D6  (now on PA7 = ADC pin, D6 is also touch X+)        */
     {GPIOA, GPIO_PIN_6 },   /* D7 */
 };
 #define LCD_WR   GPIOA, GPIO_PIN_5

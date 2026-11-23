@@ -770,3 +770,12 @@ While LVGL draws (up to ~150 ms full screen at 32 MHz) the sequencer waits; radi
 | Out of flash / RAM | Build Analyzer (Memory Regions); `LV_MEM_SIZE`, `DRAW_BUF_LINES` |
 
 Useful Live Expressions: `ADCCTRL_LastRaw`, `ADCCTRL_LastVddMv`. Find all our changes in ST files: Ctrl+H → `BLE_TFT`.
+
+---
+
+## 15. BLE_TFT_AutoLock (20–21 Nov 2026)
+
+This folder is the combined project (TFT + laptop AutoLock): menus **10. AutoLock log** and **11. AutoLock**.
+Full description: **BLE_TFT_AUTOLOCK.md**. White-screen wiring debug: **TFT_WIRING_DEBUG.md**.
+
+Touch screen (menu 12, D5/D6 wires swapped): see **TOUCH_SETUP.md**.

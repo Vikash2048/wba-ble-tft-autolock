@@ -20,7 +20,8 @@ void ui_show_message(void);   /* ui_message.c - step 5.3: text from the phone (B
 void ui_show_image(void);     /* ui_image.c   - step 6: picture from the phone (BLE_TFT only) */
 void ui_show_music(void);
 void ui_show_autolock(void);
-void ui_show_autolock_view(void);  /* ui_autolock_view.c - BLE_TFT_AutoLock step C: NEAR/FAR, graph, pause, forget */  /* ui_autolock.c - BLE_TFT_AutoLock: status + log on screen */     /* ui_music.c   - step 7: now playing on the iPhone (BLE_TFT only) */
+void ui_show_autolock_view(void);
+void ui_show_touch(void);          /* ui_touch.c - touch test + calibration */  /* ui_autolock_view.c - BLE_TFT_AutoLock step C: NEAR/FAR, graph, pause, forget */  /* ui_autolock.c - BLE_TFT_AutoLock: status + log on screen */     /* ui_music.c   - step 7: now playing on the iPhone (BLE_TFT only) */
 
 /* Helpers (ui.c) */
 lv_obj_t *ui_new_screen(const char *title);          /* black screen + title       */

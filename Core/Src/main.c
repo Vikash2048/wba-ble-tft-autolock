@@ -23,6 +23,7 @@
 /* USER CODE BEGIN Includes */
 /* BLE_TFT: our display, LVGL, button input, sensors and screens */
 #include "tft.h"
+#include "touch.h"          /* BLE_TFT_AutoLock */
 #include "lvgl.h"
 #include "lvgl_port.h"
 #include "input_port.h"
@@ -94,6 +95,12 @@ static void SystemPower_Config(void);
  * TFT LCD_RD from IOREF (CN5-2) to CN4-36 (PA1 = button B1; don't press B1).
  * Every 2 s the display's ID and power status are read back and printed
  * (Tera Term COM462, 115200). Put RD back on IOREF afterwards.
+ *
+ * TFT_PIN_TEST 4 = TOUCH TEST (no multimeter, no wiring change). The touch film
+ * is two resistive layers on the display pins: X layer D6<->RS, Y layer WR<->D7.
+ * At start it checks both layers are there, then: press the screen ->
+ * green LED LD2 ON + "PRESSED" in Tera Term. Release -> LD2 off.
+ * (The screen shows nothing / garbage in this mode - that is normal.)
  * Note: UART TX is PA6 = TFT D7, so the log pauses during the D7 step.
  * ========================================================================== */
 #define TFT_PIN_TEST 0
@@ -108,8 +115,8 @@ static const tpin_t TP[] = {
   { GPIOA, GPIO_PIN_8,  "D2", "PA8",  "CN6-6"  },
   { GPIOA, GPIO_PIN_11, "D3", "PA11", "CN6-9"  },
   { GPIOB, GPIO_PIN_2,  "D4", "PB2",  "CN6-10" },
-  { GPIOA, GPIO_PIN_7,  "D5", "PA7",  "CN4-6"  },
-  { GPIOB, GPIO_PIN_15, "D6", "PB15", "CN4-38" },
+  { GPIOB, GPIO_PIN_15, "D5", "PB15", "CN4-38" },   /* D5/D6 swapped for touch */
+  { GPIOA, GPIO_PIN_7,  "D6", "PA7",  "CN4-6"  },
   { GPIOA, GPIO_PIN_6,  "D7", "PA6",  "CN3-37" },
   { GPIOA, GPIO_PIN_5,  "WR", "PA5",  "CN6-3"  },
   { GPIOC, GPIO_PIN_13, "RS", "PC13", "CN4-30" },
@@ -248,7 +255,7 @@ static void tft_pin_test(void)
 typedef struct { GPIO_TypeDef *port; uint16_t pin; } bpin_t;
 static const bpin_t DB[8] = {
   { GPIOA, GPIO_PIN_9 }, { GPIOA, GPIO_PIN_10 }, { GPIOA, GPIO_PIN_8 }, { GPIOA, GPIO_PIN_11 },
-  { GPIOB, GPIO_PIN_2 }, { GPIOA, GPIO_PIN_7 },  { GPIOB, GPIO_PIN_15 }, { GPIOA, GPIO_PIN_6 } };
+  { GPIOB, GPIO_PIN_2 }, { GPIOB, GPIO_PIN_15 }, { GPIOA, GPIO_PIN_7 }, { GPIOA, GPIO_PIN_6 } };   /* D5/D6 swapped */
 #define RD_PORT GPIOA
 #define RD_PIN  GPIO_PIN_1      /* LCD_RD moved to CN4-36 for this test */
 #define WR_P    GPIOA, GPIO_PIN_5
@@ -333,6 +340,80 @@ static void tft_read_test(void)
 }
 #endif
 
+#if (TFT_PIN_TEST == 4)
+#include <stdio.h>
+#include <string.h>
+#define T_XP  GPIOA, GPIO_PIN_7    /* LCD_D6 = X layer + (after D5/D6 swap) */
+#define T_XM  GPIOC, GPIO_PIN_13   /* LCD_RS = X layer - */
+#define T_YP  GPIOA, GPIO_PIN_5    /* LCD_WR = Y layer + */
+#define T_YM  GPIOA, GPIO_PIN_6    /* LCD_D7 = Y layer - (also UART TX) */
+
+static void t_pin(GPIO_TypeDef *port, uint16_t pin, uint32_t mode, uint32_t pull, int level)
+{
+  GPIO_InitTypeDef g = {0};
+  if (mode == GPIO_MODE_OUTPUT_PP) HAL_GPIO_WritePin(port, pin, level ? GPIO_PIN_SET : GPIO_PIN_RESET);
+  g.Pin = pin; g.Mode = mode; g.Pull = pull; g.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(port, &g);
+}
+static void t_print(const char *t) { HAL_UART_Transmit(&huart1, (uint8_t *)t, (uint16_t)strlen(t), 300); }
+
+/* 1 = this pin is pulled LOW through a layer when the other end is driven LOW */
+static int t_layer(GPIO_TypeDef *dp, uint16_t dpin, GPIO_TypeDef *sp, uint16_t spin)
+{
+  t_pin(dp, dpin, GPIO_MODE_OUTPUT_PP, GPIO_NOPULL, 0);
+  t_pin(sp, spin, GPIO_MODE_INPUT, GPIO_PULLUP, 0);
+  HAL_Delay(2);
+  int r = (HAL_GPIO_ReadPin(sp, spin) == GPIO_PIN_RESET);
+  t_pin(dp, dpin, GPIO_MODE_INPUT, GPIO_NOPULL, 0);
+  t_pin(sp, spin, GPIO_MODE_INPUT, GPIO_NOPULL, 0);
+  return r;
+}
+
+static void tft_touch_test(void)
+{
+  char b[120];
+  __HAL_RCC_GPIOA_CLK_ENABLE(); __HAL_RCC_GPIOB_CLK_ENABLE(); __HAL_RCC_GPIOC_CLK_ENABLE();
+  t_pin(GPIOB, GPIO_PIN_12, GPIO_MODE_OUTPUT_PP, GPIO_NOPULL, 0);      /* LD2 */
+  MX_USART1_UART_Init();
+  HAL_Delay(300);
+
+  int x_ok = t_layer(T_XP, T_XM);           /* D6 low -> RS low?  */
+  int y_ok = t_layer(T_YM, T_YP);           /* D7 low -> WR low?  */
+  HAL_UART_MspInit(&huart1);
+  t_print("\r\n\r\n========== TOUCH TEST ==========\r\n");
+  snprintf(b, sizeof b, "   X layer (D6 <-> RS): %s\r\n", x_ok ? "found" : "NOT found");  t_print(b);
+  snprintf(b, sizeof b, "   Y layer (WR <-> D7): %s\r\n", y_ok ? "found" : "NOT found");  t_print(b);
+  t_print("   Now press the screen: LD2 ON + PRESSED\r\n\r\n");
+
+  int was = -1;
+  uint32_t presses = 0;
+  for (;;)
+  {
+    /* X layer to 0 V, Y layer as input with pull-up.
+     * Not pressed: Y stays HIGH. Pressed: the layers touch -> Y pulled LOW. */
+    t_pin(T_XP, GPIO_MODE_OUTPUT_PP, GPIO_NOPULL, 0);
+    t_pin(T_XM, GPIO_MODE_OUTPUT_PP, GPIO_NOPULL, 0);
+    t_pin(T_YM, GPIO_MODE_INPUT, GPIO_NOPULL, 0);
+    t_pin(T_YP, GPIO_MODE_INPUT, GPIO_PULLUP, 0);
+    HAL_Delay(2);
+    int pressed = (HAL_GPIO_ReadPin(T_YP) == GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, pressed ? GPIO_PIN_SET : GPIO_PIN_RESET);
+
+    if (pressed != was)
+    {
+      was = pressed;
+      if (pressed) presses++;
+      t_pin(T_YP, GPIO_MODE_INPUT, GPIO_NOPULL, 0);
+      HAL_UART_MspInit(&huart1);                  /* PA6 back to UART for printing */
+      snprintf(b, sizeof b, "   %s   (presses: %lu)\r\n", pressed ? "PRESSED " : "released",
+               (unsigned long)presses);
+      t_print(b);
+    }
+    HAL_Delay(40);
+  }
+}
+#endif
+
 #if (TFT_PIN_TEST == 2)
 static void tft_colour_test(void)
 {
@@ -406,6 +487,8 @@ int main(void)
   tft_colour_test();       /* colour test - never returns */
 #elif (TFT_PIN_TEST == 3)
   tft_read_test();         /* ID read test - never returns (LCD_RD on CN4-36) */
+#elif (TFT_PIN_TEST == 4)
+  tft_touch_test();        /* touch test - never returns (press screen -> LD2 on) */
 #endif
 
   /* USER CODE END 2 */
@@ -420,6 +503,7 @@ int main(void)
   tft_init();
   lvgl_port_init();
   input_port_init();        /* button B1 -> LVGL */
+  touch_init();             /* BLE_TFT_AutoLock: touch screen -> LVGL (after calibration in menu 12) */
   sensors_init();           /* chip temperature + supply voltage, 1 s (via adc_ctrl) */
   ui_create();              /* home menu */
   while (1)

@@ -8,12 +8,19 @@
 
 ## 1. Summary (one minute version)
 
+> **Correction (21 Nov 2026):** the "D6 ↔ RS touching" result was **not a fault**. On this shield
+> the resistive **touch panel** is wired across display pins: **X layer = LCD_D6 ↔ LCD_RS**,
+> **Y layer = LCD_WR ↔ LCD_D7** (each ~300–900 Ω). The wiring test sees that resistance and
+> reports "touching" – that is normal. **The only real fault was the open D7 wire.**
+> (`TFT_PIN_TEST 4` = touch test confirms both layers.)
+
+
 | | |
 |---|---|
 | **Symptom** | Screen completely **white** (backlight on, nothing drawn) – also with the old, known-good BLE_TFT firmware |
-| **Root cause 1** | **D6 and RS wires touching** each other (at the jumper wire / header) |
-| **Root cause 2** | **D7 wire not connected** (broken / loose jumper between Nucleo CN3-37 and the shield) |
-| **Fix** | Replaced the D6 and D7 jumper wires |
+| ~~Root cause 1~~ | ~~D6 and RS touching~~ → **not a fault: touch panel X layer** (see correction) |
+| **Root cause** | **D7 wire not connected** (broken / loose jumper between Nucleo CN3-37 and the shield) |
+| **Fix** | Replaced the D7 jumper wire (D6 was replaced too, but was fine) |
 | **How we found it** | Firmware **test modes** (no multimeter guessing): wiring test → colour test → asking the display for its ID |
 | **Key clue** | Every byte read back from the display had its **top bit stuck at 1** (`80 B1 A9` instead of `00 93 41`) → bit 7 = D7 wire |
 
@@ -98,7 +105,7 @@ Set the number, build, flash, open **Tera Term (COM462, 115200)**, press reset.
 |---|---|---|
 | **STUCK** | drive the pin LOW for a moment, read it back | still HIGH → wire is on 3.3 V / 5 V |
 | **PULLED** | all pins inputs with weak pull-down | HIGH → shield has a pull-up resistor (**normal**, harmless) |
-| **TOUCHING** | all pins inputs with pull-UP, drive one LOW | another one also LOW → **the two wires touch** |
+| **TOUCHING** | all pins inputs with pull-UP, drive one LOW | another one also LOW → the two wires touch – **except D6↔RS and WR↔D7 = touch panel layers (normal)** |
 
 Output example (what we saw):
 
@@ -165,8 +172,8 @@ after fix:   ID(D3) 00 31 29 | power(0A) 9C      ← display ON
 | LCD_D2 | PA8 | CN6-6 |
 | LCD_D3 | PA11 | CN6-9 |
 | LCD_D4 | PB2 | CN6-10 |
-| LCD_D5 | PA7 | CN4-6 |
-| LCD_D6 | PB15 | CN4-38 *(replaced wire)* |
+| LCD_D5 | PB15 | CN4-38 *(since 21 Nov: swapped with D6 for touch – see TOUCH_SETUP.md)* |
+| LCD_D6 | PA7 | CN4-6 *(since 21 Nov: on the ADC pin for touch)* |
 | LCD_D7 | PA6 | CN3-37 *(replaced wire)* |
 | LCD_WR | PA5 | CN6-3 |
 | LCD_RS | PC13 | CN4-30 |

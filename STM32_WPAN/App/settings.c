@@ -33,16 +33,23 @@ static const settings_t defaults = { -54, -62, 5, 2, 4, 60 };
 #define NVM_SIZE        (16U * 1024U)
 #define CFG_PAGE_ADDR   (FLASH_BASE + FLASH_SIZE - NVM_SIZE - FLASH_PAGE_SIZE)
 #define CFG_PAGE_INDEX  ((CFG_PAGE_ADDR - FLASH_BASE) / FLASH_PAGE_SIZE)
-#define CFG_MAGIC       0x314B4C41UL      /* "ALK1" */
+#define CFG_MAGIC       0x314B4C41UL      /* "ALK1": old record (16 bytes, settings only)      */
+#define CFG_MAGIC2      0x324B4C41UL      /* "ALK2": BLE_TFT_AutoLock, + touch calibration    */
 
 typedef struct
 {
   uint32_t   magic;
   settings_t s;          /* 6 bytes */
-  uint8_t    pad[6];     /* total 16 bytes = one 128-bit flash write */
+  uint8_t    cal_valid;  /* touch calibration present (BLE_TFT_AutoLock) */
+  uint8_t    pad1;
+  uint16_t   cal_rx[3];  /* raw touch values of the 3 calibration crosses */
+  uint16_t   cal_ry[3];
+  uint8_t    pad[8];     /* total 32 bytes = two 128-bit flash writes */
 } stored_t;
 
 static settings_t cur;
+static uint8_t    cal_valid;
+static uint16_t   cal_rx[3], cal_ry[3];
 
 /* ---- UUIDs (little-endian) ---- */
 #define SET_UUID(last) { 0x01, 0x0A, 0x8F, 0x7E, 0x2D, 0x6B, 0x3A, 0x9F, \
@@ -59,7 +66,7 @@ static fstate_t fstate = F_IDLE;
 static volatile uint8_t fm_complete, fm_available;
 static uint8_t  fm_waiting;          /* FM said BUSY: wait for "available" */
 static uint8_t  save_again;
-static uint32_t wbuf[4];             /* 32-bit aligned source for FM_Write */
+static uint32_t wbuf[8];             /* 32-bit aligned source for FM_Write (32 bytes) */
 
 static void fm_cb(FM_FlashOp_Status_t st)
 {
@@ -91,10 +98,17 @@ static void log_settings(const char *what)
 void settings_init(void)
 {
   const stored_t *f = (const stored_t *)CFG_PAGE_ADDR;
-  if (f->magic == CFG_MAGIC && valid(&f->s))
+  if ((f->magic == CFG_MAGIC || f->magic == CFG_MAGIC2) && valid(&f->s))
   {
     cur = f->s;
     log_settings("loaded from flash");
+    if (f->magic == CFG_MAGIC2 && f->cal_valid == 1)
+    {
+      cal_valid = 1;
+      memcpy(cal_rx, f->cal_rx, sizeof cal_rx);
+      memcpy(cal_ry, f->cal_ry, sizeof cal_ry);
+      SLOG(">> settings: touch calibration loaded from flash\n");
+    }
   }
   else
   {
@@ -143,11 +157,14 @@ void settings_tick(void)
     {
       stored_t st;
       memset(&st, 0xFF, sizeof st);
-      st.magic = CFG_MAGIC;
+      st.magic = CFG_MAGIC2;
       st.s = cur;
+      st.cal_valid = cal_valid;
+      memcpy(st.cal_rx, cal_rx, sizeof cal_rx);
+      memcpy(st.cal_ry, cal_ry, sizeof cal_ry);
       memcpy(wbuf, &st, sizeof wbuf);
       fm_complete = 0;
-      r = FM_Write(wbuf, (uint32_t *)CFG_PAGE_ADDR, 4, &fm_node);   /* size in 32-bit words */
+      r = FM_Write(wbuf, (uint32_t *)CFG_PAGE_ADDR, 8, &fm_node);   /* size in 32-bit words */
       if (r == FM_OK)        fstate = F_WRITING;
       else if (r == FM_BUSY) fm_waiting = 1;
       else { SLOG(">> settings: flash write ERROR\n"); fstate = F_IDLE; }
@@ -160,7 +177,7 @@ void settings_tick(void)
         fstate = F_IDLE;
         const stored_t *f = (const stored_t *)CFG_PAGE_ADDR;
         SLOG(">> settings: %s\n",
-                     (f->magic == CFG_MAGIC && memcmp(&f->s, &cur, sizeof cur) == 0)
+                     (f->magic == CFG_MAGIC2 && memcmp(&f->s, &cur, sizeof cur) == 0)
                      ? "saved to flash" : "flash verify FAILED");
         if (save_again) { save_again = 0; fstate = F_ERASE; }
       }
@@ -253,4 +270,22 @@ void settings_update_status(uint8_t near, int8_t filt, int8_t raw, uint8_t pause
   if (!status_h) return;
   uint8_t v[5] = { near, (uint8_t)filt, (uint8_t)raw, paused, kbd };
   aci_gatt_update_char_value(svc_h, status_h, 0, sizeof v, v);   /* notifies subscribers */
+}
+
+/* ---------------- touch calibration (BLE_TFT_AutoLock) ---------------- */
+void settings_save_touch_cal(const uint16_t rx[3], const uint16_t ry[3])
+{
+  memcpy(cal_rx, rx, sizeof cal_rx);
+  memcpy(cal_ry, ry, sizeof cal_ry);
+  cal_valid = 1;
+  SLOG(">> settings: touch calibration saved\n");
+  request_save();
+}
+
+int settings_get_touch_cal(uint16_t rx[3], uint16_t ry[3])
+{
+  if (!cal_valid) return 0;
+  memcpy(rx, cal_rx, sizeof cal_rx);
+  memcpy(ry, cal_ry, sizeof cal_ry);
+  return 1;
 }
